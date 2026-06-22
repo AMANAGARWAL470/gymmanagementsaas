@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "./contexts/AuthContext";
-import { Member, MemberStatus, StaffRole } from "@gymsaas/types";
+import { Member } from "@gymsaas/types";
 
 // Mock Data for Simulated Demo Mode
 const MOCK_MEMBERS: Member[] = [
@@ -52,14 +52,13 @@ const MOCK_MEMBERS: Member[] = [
 ];
 
 const App: React.FC = () => {
-  const { user, tenantId, role, loading, logout } = useAuth();
+  const { loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "billing" | "ai">("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   // Styling variable tokens matching design specifications
   const primaryColor = "#f59e0b"; // Amber-500 (Brand Accent)
-  const secondaryColor = "#0f172a"; // Slate-900 (Surface)
 
   if (loading) {
     return (
@@ -347,7 +346,6 @@ const App: React.FC = () => {
 const styles: Record<string, React.CSSProperties> = {
   appWrapper: {
     display: "flex",
-    minHeight: "screen",
     minHeight: "100vh",
     backgroundColor: "#020617"
   },

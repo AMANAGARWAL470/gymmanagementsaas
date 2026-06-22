@@ -1,19 +1,46 @@
--- 1. Create Enums
-CREATE TYPE tenant_status AS ENUM ('ACTIVE', 'SUSPENDED', 'PENDING_PAYMENT');
-CREATE TYPE staff_role AS ENUM ('ADMIN', 'TRAINER', 'RECEPTIONIST');
-CREATE TYPE member_status AS ENUM ('ACTIVE', 'INACTIVE', 'FROZEN', 'SUSPENDED');
-CREATE TYPE membership_status AS ENUM ('ACTIVE', 'EXPIRED', 'FROZEN');
-CREATE TYPE freeze_status AS ENUM ('PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED');
-CREATE TYPE invoice_status AS ENUM ('PAID', 'UNPAID', 'OVERDUE', 'VOID');
-CREATE TYPE payment_gateway AS ENUM ('STRIPE', 'RAZORPAY', 'MANUAL');
-CREATE TYPE payment_status AS ENUM ('SUCCESS', 'FAILED', 'REFUNDED');
-CREATE TYPE checkin_method AS ENUM ('QR', 'RFID', 'BIOMETRIC', 'MANUAL');
-CREATE TYPE lead_status AS ENUM ('NEW', 'CONTACTED', 'TRIAL', 'WON', 'LOST');
-CREATE TYPE cms_module_type AS ENUM ('EXERCISE', 'WORKOUT', 'DIET', 'PLAN', 'NOTIFICATION', 'FORM', 'PROMOTION');
-CREATE TYPE cms_version_status AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+-- 1. Create Enums Conditionally (Prevent Duplication Errors)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tenant_status') THEN
+        CREATE TYPE tenant_status AS ENUM ('ACTIVE', 'SUSPENDED', 'PENDING_PAYMENT');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'staff_role') THEN
+        CREATE TYPE staff_role AS ENUM ('ADMIN', 'TRAINER', 'RECEPTIONIST');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'member_status') THEN
+        CREATE TYPE member_status AS ENUM ('ACTIVE', 'INACTIVE', 'FROZEN', 'SUSPENDED');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'membership_status') THEN
+        CREATE TYPE membership_status AS ENUM ('ACTIVE', 'EXPIRED', 'FROZEN');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'freeze_status') THEN
+        CREATE TYPE freeze_status AS ENUM ('PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invoice_status') THEN
+        CREATE TYPE invoice_status AS ENUM ('PAID', 'UNPAID', 'OVERDUE', 'VOID');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_gateway') THEN
+        CREATE TYPE payment_gateway AS ENUM ('STRIPE', 'RAZORPAY', 'MANUAL');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+        CREATE TYPE payment_status AS ENUM ('SUCCESS', 'FAILED', 'REFUNDED');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'checkin_method') THEN
+        CREATE TYPE checkin_method AS ENUM ('QR', 'RFID', 'BIOMETRIC', 'MANUAL');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lead_status') THEN
+        CREATE TYPE lead_status AS ENUM ('NEW', 'CONTACTED', 'TRIAL', 'WON', 'LOST');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'cms_module_type') THEN
+        CREATE TYPE cms_module_type AS ENUM ('EXERCISE', 'WORKOUT', 'DIET', 'PLAN', 'NOTIFICATION', 'FORM', 'PROMOTION');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'cms_version_status') THEN
+        CREATE TYPE cms_version_status AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+    END IF;
+END$$;
 
 -- 2. Create Global / Tenant Tables
-CREATE TABLE public.tenants (
+CREATE TABLE IF NOT EXISTS public.tenants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(50) NOT NULL UNIQUE CONSTRAINT slug_format_check CHECK (slug ~ '^[a-z0-9-]+$'),
@@ -23,7 +50,7 @@ CREATE TABLE public.tenants (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.tenant_branding (
+CREATE TABLE IF NOT EXISTS public.tenant_branding (
     tenant_id UUID PRIMARY KEY REFERENCES public.tenants(id) ON DELETE CASCADE,
     logo_url TEXT,
     app_icon_url TEXT,
@@ -41,7 +68,7 @@ CREATE TABLE public.tenant_branding (
 );
 
 -- 3. Core Users & Staff Tables
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY, -- References auth.users
     active_tenant_id UUID REFERENCES public.tenants(id) ON DELETE SET NULL,
     first_name VARCHAR(50) NOT NULL,
@@ -49,7 +76,7 @@ CREATE TABLE public.profiles (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.tenant_membership_roles (
+CREATE TABLE IF NOT EXISTS public.tenant_membership_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -57,7 +84,7 @@ CREATE TABLE public.tenant_membership_roles (
     CONSTRAINT unique_profile_tenant_role UNIQUE (tenant_id, profile_id, role)
 );
 
-CREATE TABLE public.staff (
+CREATE TABLE IF NOT EXISTS public.staff (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     auth_user_id UUID NOT NULL UNIQUE,
@@ -70,7 +97,7 @@ CREATE TABLE public.staff (
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE public.members (
+CREATE TABLE IF NOT EXISTS public.members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     auth_user_id UUID UNIQUE,
@@ -88,7 +115,7 @@ CREATE TABLE public.members (
 );
 
 -- 4. Corporate & Family Group Tables
-CREATE TABLE public.corporate_sponsors (
+CREATE TABLE IF NOT EXISTS public.corporate_sponsors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     company_name VARCHAR(100) NOT NULL,
@@ -98,7 +125,7 @@ CREATE TABLE public.corporate_sponsors (
     CONSTRAINT unique_tenant_company_domain UNIQUE (tenant_id, email_domain)
 );
 
-CREATE TABLE public.membership_groups (
+CREATE TABLE IF NOT EXISTS public.membership_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     primary_member_id UUID NOT NULL REFERENCES public.members(id),
@@ -107,14 +134,14 @@ CREATE TABLE public.membership_groups (
     max_sub_accounts INTEGER NOT NULL DEFAULT 4 CHECK (max_sub_accounts >= 0)
 );
 
-CREATE TABLE public.membership_group_members (
+CREATE TABLE IF NOT EXISTS public.membership_group_members (
     group_id UUID REFERENCES public.membership_groups(id) ON DELETE CASCADE,
     member_id UUID REFERENCES public.members(id) ON DELETE CASCADE,
     PRIMARY KEY (group_id, member_id)
 );
 
 -- 5. Membership Plan Tables
-CREATE TABLE public.membership_plans (
+CREATE TABLE IF NOT EXISTS public.membership_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
@@ -127,7 +154,7 @@ CREATE TABLE public.membership_plans (
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE public.member_memberships (
+CREATE TABLE IF NOT EXISTS public.member_memberships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
@@ -140,7 +167,7 @@ CREATE TABLE public.member_memberships (
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE public.freezes (
+CREATE TABLE IF NOT EXISTS public.freezes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     membership_id UUID NOT NULL REFERENCES public.member_memberships(id) ON DELETE CASCADE,
@@ -153,7 +180,7 @@ CREATE TABLE public.freezes (
 );
 
 -- 6. Billing, Payments & Ledger Tables
-CREATE TABLE public.tenant_tax_configurations (
+CREATE TABLE IF NOT EXISTS public.tenant_tax_configurations (
     tenant_id UUID PRIMARY KEY REFERENCES public.tenants(id) ON DELETE CASCADE,
     tax_name VARCHAR(50) NOT NULL,
     rate_percentage NUMERIC(5, 2) NOT NULL CHECK (rate_percentage >= 0),
@@ -162,7 +189,7 @@ CREATE TABLE public.tenant_tax_configurations (
     is_inclusive BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE TABLE public.payment_methods (
+CREATE TABLE IF NOT EXISTS public.payment_methods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
@@ -174,7 +201,7 @@ CREATE TABLE public.payment_methods (
     expires_at DATE
 );
 
-CREATE TABLE public.invoices (
+CREATE TABLE IF NOT EXISTS public.invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     member_id UUID NOT NULL REFERENCES public.members(id),
@@ -192,7 +219,7 @@ CREATE TABLE public.invoices (
     CONSTRAINT unique_tenant_invoice_number UNIQUE (tenant_id, invoice_number)
 );
 
-CREATE TABLE public.payments (
+CREATE TABLE IF NOT EXISTS public.payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE RESTRICT,
@@ -203,7 +230,7 @@ CREATE TABLE public.payments (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.ledger_entries (
+CREATE TABLE IF NOT EXISTS public.ledger_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
@@ -215,7 +242,7 @@ CREATE TABLE public.ledger_entries (
 );
 
 -- 7. Operations & Attendance Tables
-CREATE TABLE public.gate_devices (
+CREATE TABLE IF NOT EXISTS public.gate_devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     device_name VARCHAR(100) NOT NULL,
@@ -223,7 +250,7 @@ CREATE TABLE public.gate_devices (
     status VARCHAR(20) NOT NULL DEFAULT 'ONLINE' CHECK (status IN ('ONLINE', 'OFFLINE'))
 );
 
-CREATE TABLE public.attendance (
+CREATE TABLE IF NOT EXISTS public.attendance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
@@ -234,7 +261,7 @@ CREATE TABLE public.attendance (
     device_id UUID REFERENCES public.gate_devices(id) ON DELETE SET NULL
 );
 
-CREATE TABLE public.attendance_offline_queue (
+CREATE TABLE IF NOT EXISTS public.attendance_offline_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     card_token VARCHAR(255) NOT NULL,
@@ -242,7 +269,7 @@ CREATE TABLE public.attendance_offline_queue (
     sync_status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (sync_status IN ('PENDING', 'COMPLETED', 'FAILED'))
 );
 
-CREATE TABLE public.leads (
+CREATE TABLE IF NOT EXISTS public.leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
@@ -255,8 +282,18 @@ CREATE TABLE public.leads (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- 8. Exercise & Workout Tables
-CREATE TABLE public.exercises (
+-- 8. Member Health Records (HIPAA-Protected Table)
+CREATE TABLE IF NOT EXISTS public.member_health_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    member_id UUID NOT NULL UNIQUE REFERENCES public.members(id) ON DELETE CASCADE,
+    encrypted_medical_notes TEXT,
+    bio_metrics JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- 9. Exercise & Workout Tables
+CREATE TABLE IF NOT EXISTS public.exercises (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE, -- Global if NULL
     name VARCHAR(100) NOT NULL,
@@ -266,14 +303,14 @@ CREATE TABLE public.exercises (
     video_url TEXT
 );
 
-CREATE TABLE public.workout_templates (
+CREATE TABLE IF NOT EXISTS public.workout_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     description TEXT
 );
 
-CREATE TABLE public.workout_template_exercises (
+CREATE TABLE IF NOT EXISTS public.workout_template_exercises (
     template_id UUID NOT NULL REFERENCES public.workout_templates(id) ON DELETE CASCADE,
     exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
     sequence_order INTEGER NOT NULL,
@@ -281,14 +318,14 @@ CREATE TABLE public.workout_template_exercises (
     PRIMARY KEY (template_id, exercise_id, sequence_order)
 );
 
-CREATE TABLE public.workout_programs (
+CREATE TABLE IF NOT EXISTS public.workout_programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     duration_weeks INTEGER NOT NULL CHECK (duration_weeks > 0)
 );
 
-CREATE TABLE public.workout_program_days (
+CREATE TABLE IF NOT EXISTS public.workout_program_days (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     program_id UUID NOT NULL REFERENCES public.workout_programs(id) ON DELETE CASCADE,
     week_number INTEGER NOT NULL,
@@ -296,7 +333,7 @@ CREATE TABLE public.workout_program_days (
     template_id UUID NOT NULL REFERENCES public.workout_templates(id) ON DELETE RESTRICT
 );
 
-CREATE TABLE public.member_program_assignments (
+CREATE TABLE IF NOT EXISTS public.member_program_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
     program_id UUID NOT NULL REFERENCES public.workout_programs(id) ON DELETE RESTRICT,
@@ -305,7 +342,7 @@ CREATE TABLE public.member_program_assignments (
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETED', 'CANCELLED'))
 );
 
-CREATE TABLE public.workout_logs (
+CREATE TABLE IF NOT EXISTS public.workout_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     assignment_id UUID REFERENCES public.member_program_assignments(id) ON DELETE SET NULL,
@@ -315,7 +352,7 @@ CREATE TABLE public.workout_logs (
     duration_minutes INTEGER
 );
 
-CREATE TABLE public.workout_set_logs (
+CREATE TABLE IF NOT EXISTS public.workout_set_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     log_id UUID NOT NULL REFERENCES public.workout_logs(id) ON DELETE CASCADE,
     exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
@@ -328,7 +365,7 @@ CREATE TABLE public.workout_set_logs (
     completed BOOLEAN NOT NULL DEFAULT true
 );
 
-CREATE TABLE public.member_personal_records (
+CREATE TABLE IF NOT EXISTS public.member_personal_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
     exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE CASCADE,
@@ -338,8 +375,8 @@ CREATE TABLE public.member_personal_records (
     recorded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- 9. Nutrition & Diets Tables
-CREATE TABLE public.foods (
+-- 10. Nutrition & Diets Tables
+CREATE TABLE IF NOT EXISTS public.foods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE, -- Global if NULL
     name VARCHAR(100) NOT NULL,
@@ -350,7 +387,7 @@ CREATE TABLE public.foods (
     fat_g NUMERIC(5, 2) NOT NULL CHECK (fat_g >= 0)
 );
 
-CREATE TABLE public.diet_templates (
+CREATE TABLE IF NOT EXISTS public.diet_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
@@ -360,21 +397,21 @@ CREATE TABLE public.diet_templates (
     target_fat_g NUMERIC(5, 2) NOT NULL
 );
 
-CREATE TABLE public.diet_meals (
+CREATE TABLE IF NOT EXISTS public.diet_meals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     template_id UUID NOT NULL REFERENCES public.diet_templates(id) ON DELETE CASCADE,
     meal_name VARCHAR(50) NOT NULL,
     sequence_order INTEGER NOT NULL
 );
 
-CREATE TABLE public.diet_meal_items (
+CREATE TABLE IF NOT EXISTS public.diet_meal_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     meal_id UUID NOT NULL REFERENCES public.diet_meals(id) ON DELETE CASCADE,
     food_id UUID NOT NULL REFERENCES public.foods(id) ON DELETE RESTRICT,
     portion_g NUMERIC(6, 2) NOT NULL CHECK (portion_g > 0)
 );
 
-CREATE TABLE public.member_diet_assignments (
+CREATE TABLE IF NOT EXISTS public.member_diet_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
     template_id UUID NOT NULL REFERENCES public.diet_templates(id) ON DELETE RESTRICT,
@@ -383,7 +420,7 @@ CREATE TABLE public.member_diet_assignments (
     is_active BOOLEAN NOT NULL DEFAULT true
 );
 
-CREATE TABLE public.diet_logs (
+CREATE TABLE IF NOT EXISTS public.diet_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
     logged_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -391,15 +428,15 @@ CREATE TABLE public.diet_logs (
     CONSTRAINT unique_member_diet_date UNIQUE (member_id, logged_date)
 );
 
-CREATE TABLE public.diet_meal_logs (
+CREATE TABLE IF NOT EXISTS public.diet_meal_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     log_id UUID NOT NULL REFERENCES public.diet_logs(id) ON DELETE CASCADE,
     meal_id UUID NOT NULL REFERENCES public.diet_meals(id) ON DELETE CASCADE,
     completed BOOLEAN NOT NULL DEFAULT false
 );
 
--- 10. Automation & Notification Templates Tables
-CREATE TABLE public.notification_templates (
+-- 11. Automation & Notification Templates Tables
+CREATE TABLE IF NOT EXISTS public.notification_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     slug VARCHAR(100) NOT NULL,
@@ -410,7 +447,7 @@ CREATE TABLE public.notification_templates (
     CONSTRAINT unique_tenant_slug_locale_channel UNIQUE (tenant_id, slug, locale, channel)
 );
 
-CREATE TABLE public.automation_rules (
+CREATE TABLE IF NOT EXISTS public.automation_rules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     name VARCHAR(150) NOT NULL,
@@ -418,7 +455,7 @@ CREATE TABLE public.automation_rules (
     is_active BOOLEAN NOT NULL DEFAULT true
 );
 
-CREATE TABLE public.automation_conditions (
+CREATE TABLE IF NOT EXISTS public.automation_conditions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     rule_id UUID NOT NULL REFERENCES public.automation_rules(id) ON DELETE CASCADE,
     field VARCHAR(100) NOT NULL,
@@ -426,7 +463,7 @@ CREATE TABLE public.automation_conditions (
     value VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE public.automation_actions (
+CREATE TABLE IF NOT EXISTS public.automation_actions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     rule_id UUID NOT NULL REFERENCES public.automation_rules(id) ON DELETE CASCADE,
     action_type VARCHAR(50) NOT NULL CHECK (action_type IN ('SEND_WHATSAPP', 'SEND_EMAIL', 'ADD_TAG', 'SUSPEND_MEMBER')),
@@ -434,7 +471,7 @@ CREATE TABLE public.automation_actions (
     execution_delay_seconds INTEGER DEFAULT 0 CHECK (execution_delay_seconds >= 0)
 );
 
-CREATE TABLE public.automation_execution_logs (
+CREATE TABLE IF NOT EXISTS public.automation_execution_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     rule_id UUID NOT NULL REFERENCES public.automation_rules(id) ON DELETE CASCADE,
@@ -444,8 +481,8 @@ CREATE TABLE public.automation_execution_logs (
     error_message TEXT
 );
 
--- 11. CMS Content & Versioning Tables
-CREATE TABLE public.cms_metadata (
+-- 12. CMS Content & Versioning Tables
+CREATE TABLE IF NOT EXISTS public.cms_metadata (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     module_type cms_module_type NOT NULL,
@@ -453,7 +490,7 @@ CREATE TABLE public.cms_metadata (
     is_archived BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE TABLE public.cms_versions (
+CREATE TABLE IF NOT EXISTS public.cms_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     metadata_id UUID NOT NULL REFERENCES public.cms_metadata(id) ON DELETE CASCADE,
     version_number INTEGER NOT NULL CHECK (version_number > 0),
@@ -463,10 +500,18 @@ CREATE TABLE public.cms_versions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.cms_metadata ADD CONSTRAINT fk_active_version FOREIGN KEY (active_version_id) REFERENCES public.cms_versions(id) ON DELETE SET NULL;
+-- Safely apply foreign key constraints if not already exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_active_version'
+    ) THEN
+        ALTER TABLE public.cms_metadata ADD CONSTRAINT fk_active_version FOREIGN KEY (active_version_id) REFERENCES public.cms_versions(id) ON DELETE SET NULL;
+    END IF;
+END$$;
 
--- 12. System Audit Logs & Analytics Reports
-CREATE TABLE public.audit_logs (
+-- 13. System Audit Logs & Analytics Reports
+CREATE TABLE IF NOT EXISTS public.audit_logs (
     id BIGSERIAL PRIMARY KEY,
     tenant_id UUID REFERENCES public.tenants(id) ON DELETE SET NULL,
     actor_id UUID,
@@ -478,7 +523,7 @@ CREATE TABLE public.audit_logs (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.financial_snapshots (
+CREATE TABLE IF NOT EXISTS public.financial_snapshots (
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     snapshot_date DATE NOT NULL,
     total_mrr NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
@@ -488,7 +533,7 @@ CREATE TABLE public.financial_snapshots (
     PRIMARY KEY (tenant_id, snapshot_date)
 );
 
-CREATE TABLE public.ai_predictions (
+CREATE TABLE IF NOT EXISTS public.ai_predictions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
     target_type VARCHAR(30) NOT NULL CHECK (target_type IN ('MEMBER_CHURN', 'REVENUE_FORECAST', 'OCCUPANCY')),

@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2c3548bf-f0ac-4c10-b1de-4006134776b2"
+      }
+    },
+    "owner": "flexist"
   }
 }

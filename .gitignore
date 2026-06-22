@@ -1,0 +1,40 @@
+# Node / Monorepo dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js build output
+.next/
+out/
+
+# General build outputs
+dist/
+build/
+bin/
+obj/
+
+# Expo / React Native mobile files
+.expo/
+*.jks
+*.p8
+*.mobileprovision
+
+# Env files and keys
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Turbo build cache
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

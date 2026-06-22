@@ -2,6 +2,13 @@
   "name": "@gymsaas/mobile",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "tsc --noEmit"
+  },
   "dependencies": {
     "@gymsaas/types": "*",
     "@supabase/supabase-js": "^2.39.8",
